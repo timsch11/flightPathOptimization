@@ -29,15 +29,16 @@ class PlaneNavigationEnv(gym.Env):
         self.no_fly_zones = [((30, 40), (30, 40)), ((60, 70), (10, 20))]
         
         # Goal
-        self.goal = np.array([90.0, 90.0])
+        self.goal = np.array([30.0, 15.0])
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         
-        self.position = np.array([10.0, 10.0])  # Start point
+        self.position = np.array([10.0, 10.0]) #np.random.rand(2) * 100
+        self.goal = self.goal.copy() # np.random.rand(2) * 100
         self.step_count = 0
         
-        observation = self.position.copy()
+        observation = np.concatenate([self.position.copy(), self.goal.copy()])
         info = {}
         
         return observation, info
@@ -79,7 +80,7 @@ class PlaneNavigationEnv(gym.Env):
         elif self.step_count >= self.max_steps:
             truncated = True
         
-        observation = self.position.copy()
+        observation = np.concatenate([self.position.copy(), self.goal.copy()])
         info = {}
         
         return observation, reward, terminated, truncated, info
