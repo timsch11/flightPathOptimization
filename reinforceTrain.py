@@ -50,7 +50,7 @@ def main():
 
     model.load_state_dict(torch.load("modelCache/model_C0"))
   
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0003, maximize=True)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0003)
     
     # Create policy
     policy = EpsilonGreedyPolicy(epsilon=0.3, decay=0.99, min_epsilon=0.05)
