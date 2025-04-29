@@ -26,4 +26,12 @@ class EpsilonGreedyPolicy(Policy):
 
 
     def pickFromDistribution(self, actions, probabilities):
-        pass
+        if self.steps % self.decayStepInterval == 0:
+            self.currentEpsilon *= self.decay
+
+        self.steps += 1
+        
+        if random.random() < max(self.currentEpsilon, self.minEpsilon):
+            return actions[random.randint(0, len(actions) - 1)]
+        else:
+            return actions[torch.argmax(probabilities).item()]

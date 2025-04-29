@@ -11,4 +11,5 @@ class GreedyPolicy(Policy):
         return actions[torch.argmax(values).item()]
 
     def pickFromDistribution(self, actions, probabilities):
-        pass
+        return actions[torch.argmax(probabilities).item()]
+    
