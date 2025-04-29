@@ -16,9 +16,6 @@ def main():
     observation_dim = env.observation_space.shape[0]  # 2D position
     action_dim = env.action_space.shape[0]  # 2D movement vector
 
-    print("DIM::::::::::::::", observation_dim)
-
-    observation_dim = 4
     # Create a discrete action space for DQN
     # We'll map these discrete actions to continuous movements
     discrete_actions = np.array([
@@ -47,34 +44,34 @@ def main():
         torch.nn.Linear(64, len(discrete_actions))
     )
 
-    model.load_state_dict(torch.load("modelCache/model_B0"))
-    
+    model.load_state_dict(torch.load("modelCache/model_C0"))
+
     #criterion = torch.nn.MSELoss()
     criterion = torch.nn.SmoothL1Loss()  
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0005)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
     
     # Create policy
-    policy = EpsilonGreedyPolicy(epsilon=0.1, decay=0.9, min_epsilon=0.05)
+    policy = EpsilonGreedyPolicy(epsilon=0.05, decay=1, min_epsilon=0.05)
     
     # Initialize DQN agent
     dqn = DQN(
         model=model, 
         actionSpace=np.arange(len(discrete_actions)),  # Action indices
         policy=policy,
-        replayBufferSize=1000,
-        batchSize=50,
+        replayBufferSize=10000,
         train=True,
+        batchSize=40,
         minBufferedActionsBeforeTraining=500,
         optimizer=optimizer,
         criterion=criterion
     )
-    for scenario in range(100):
+    for scenario in range(1000):
         
         # Initialize environment and get initial state
         observation, info = env.reset()
         total_reward = 0
 
-        for episode in range(100):
+        for episode in range(125):
             env.render()
             
             # Convert observation to tensor for DQN
@@ -122,7 +119,7 @@ def main():
     env.close()
 
     print("saving model...")
-    torch.save(dqn.predictorNetwork.state_dict(), "modelCache/model_B1")
+    torch.save(dqn.predictorNetwork.state_dict(), "modelCache/model_C1")
 
 
 if __name__ == '__main__':

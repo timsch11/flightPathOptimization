@@ -7,38 +7,25 @@ from typing import Callable, Any
 from collections import deque
 
 
-class DQN:
-    def __init__(self, model: torch.nn.modules.container, actionSpace: np.ndarray, policy: Policy, replayBufferSize: int, train: bool = False, recalibrationInterval: int = 1000, minBufferedActionsBeforeTraining: int = 250, batchSize: int = 5, exponentialDecay: float = 0.9, optimizer: torch.optim = None, criterion: Callable[[Any, Any], torch.Tensor] = None):
-        # initalize prediction and target networks
-        self.predictorNetwork = model
-        self.targetNetwork = copy.deepcopy(model)
+class REINFORCE:
+    def __init__(self, model: torch.nn.modules.container, actionSpace: np.ndarray, train: bool = False, batchSize: int = 5, exponentialDecay: float = 0.9, optimizer: torch.optim = None):
+        # store model reference
+        self.network = model
 
         # store action space and used policy
         self.action_space = actionSpace
-        self.policy = policy
-
-        # initalize replay buffer
-        self.replayBufferSize = replayBufferSize
-        self.replayBuffer = ReplayBuffer(capacity=replayBufferSize)    # list of [state, action, reward, new state] pairs
-        self.minBufferedActionsBeforeTraining = minBufferedActionsBeforeTraining
-        self.bufferedActions = 0
 
         # store training hyperparameters
         self.isTraining = train
         self.batchSize = batchSize
-        self.recalibrationInterval = recalibrationInterval
         self.exponentialDecay = exponentialDecay
 
         # optimizer and loss function (only for training)
         self.optimizer = optimizer
-        self.criterion = criterion
 
         if train:
             if optimizer is None:
                 raise TypeError("For training you need to pass an optimizer")
-            
-            if criterion is None:
-                raise TypeError("For training you need to pass a loss function")
             
         # init state and action trackers
         self.samples = 0
@@ -48,9 +35,9 @@ class DQN:
 
     def setTraining(self, value: bool):
         self.isTraining = value
-
+"""
     def predict(self, state: np.ndarray) -> np.ndarray:
-        """predicts the best action to take in state <state> and returns this action"""
+        #predicts the best action to take in state <state> and returns this action
         
         # predict q values, no training yet -> no gradients needed
         with torch.no_grad():
@@ -67,7 +54,7 @@ class DQN:
         return action
     
     def bufferLastAction(self, reward: float, newState: np.ndarray):
-        """buffers the last state, action pair and its corresponding reward and resulting state"""
+        #buffers the last state, action pair and its corresponding reward and resulting state
 
         # check if training is activated and at least one prediction has already been made
         if not self.isTraining:
@@ -81,7 +68,7 @@ class DQN:
         self.bufferedActions += 1
 
     def recalibrate(self):
-        """overrides target network parameters with predictor networks weights"""
+        #overrides target network parameters with predictor networks weights
         self.targetNetwork.load_state_dict(self.predictorNetwork.state_dict())  # simply copy the state dict, more efficient than another deepcopy
 
     def train_model(self, batches: int = 1):
@@ -155,3 +142,4 @@ class ReplayBuffer:
         
     def push(self, item):
         self.buffer.append(item)
+        """
