@@ -19,15 +19,41 @@ class PlaneNavigationEnv(gym.Env):
         self.max_steps = 200
         self.step_count = 0
         
-        # Define action and observation space
-        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=0.0, high=self.size, shape=(10,), dtype=np.float32)
-        
         # Wind field: small vectors
+        #np.random.seed
         self.wind_field = np.random.uniform(-0.5, 0.5, (self.size, self.size, 2))
         
         # No-fly zones
         self.no_fly_zones = [((30, 40), (30, 40)), ((60, 70), (10, 20))]
+
+        # Create no-fly zone binary map
+        self.no_fly_map = np.zeros((self.size, self.size), dtype=np.float32)
+        for (x_range, y_range) in self.no_fly_zones:
+            self.no_fly_map[x_range[0]:x_range[1]+1, y_range[0]:y_range[1]+1] = 1.0
+        
+        # Define action and observation space
+        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
+        
+        # New observation space includes:
+        # - Current position (2)
+        # - Goal position (2)
+        # - Direction to goal (2)
+        # - Normalized distance to goal (1)
+        # - Progress through episode (1)
+        # - Wind field (flattened 2D array with 2 channels = 100×100×2)
+        # - No-fly zone map (flattened 2D array = 100×100)
+        wind_field_size = self.size * self.size * 2
+        no_fly_zone_size = self.size * self.size
+        
+        self.observation_space = spaces.Dict({
+            "position": spaces.Box(low=0.0, high=self.size, shape=(2,), dtype=np.float32),
+            "goal": spaces.Box(low=0.0, high=self.size, shape=(2,), dtype=np.float32),
+            "direction": spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32),
+            "distance": spaces.Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32),
+            "progress": spaces.Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32),
+            "wind_field": spaces.Box(low=-0.5, high=0.5, shape=(self.size, self.size, 2), dtype=np.float32),
+            "no_fly_map": spaces.Box(low=0.0, high=1.0, shape=(self.size, self.size), dtype=np.float32)
+        })
         
         # Goal
         self.goal = np.random.rand(2) * 100
@@ -41,20 +67,18 @@ class PlaneNavigationEnv(gym.Env):
         self.step_count = 0
 
         distance_to_goal = np.linalg.norm(self.goal - self.position)
-
-        wind_at_position = self.wind_field[10, 10]
         direction_to_goal = (self.goal - self.position) / (distance_to_goal + 1e-8)  # Normalized direction vector
         
-        observation = np.concatenate([
-            self.position.copy(),              # Current position (2)
-            self.goal.copy(),                  # Goal position (2)
-            wind_at_position,                  # Current wind vector (2)
-            direction_to_goal,                 # Direction to goal (2)
-            [distance_to_goal / self.size],    # Normalized distance to goal (1)
-            [self.step_count / self.max_steps] # Progress through episode (1)
-        ])
+        observation = [
+            self.position.copy(),
+            self.goal.copy(),
+            direction_to_goal,
+            np.array([distance_to_goal / self.size], dtype=np.float32),
+            np.array([self.step_count / self.max_steps], dtype=np.float32),
+            self.wind_field.copy(),
+            self.no_fly_map.copy()
+        ]
         
-        # observation = np.concatenate([self.position.copy(), self.goal.copy()])
         info = {}
         
         return observation, info
@@ -96,19 +120,18 @@ class PlaneNavigationEnv(gym.Env):
         elif self.step_count >= self.max_steps:
             truncated = True
 
-        wind_at_position = self.wind_field[x_idx, y_idx]
         direction_to_goal = (self.goal - self.position) / (distance_to_goal + 1e-8)  # Normalized direction vector
         
-        observation = np.concatenate([
-            self.position.copy(),              # Current position (2)
-            self.goal.copy(),                  # Goal position (2)
-            wind_at_position,                  # Current wind vector (2)
-            direction_to_goal,                 # Direction to goal (2)
-            [distance_to_goal / self.size],    # Normalized distance to goal (1)
-            [self.step_count / self.max_steps] # Progress through episode (1)
-        ])
+        observation = [
+            self.position.copy(),
+            self.goal.copy(),
+            direction_to_goal,
+            np.array([distance_to_goal / self.size], dtype=np.float32),
+            np.array([self.step_count / self.max_steps], dtype=np.float32),
+            self.wind_field.copy(),
+            self.no_fly_map.copy()
+        ]
         
-        #observation = np.concatenate([self.position.copy(), self.goal.copy()])
         info = {}
         
         return observation, reward, terminated, truncated, info

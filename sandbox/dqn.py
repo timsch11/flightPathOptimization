@@ -1,4 +1,4 @@
-from environment import PlaneNavigationEnv
+from environments.basicEnvironment import PlaneNavigationEnv
 from rl.algorithms.dqn import DQN
 from rl.policy.greedy import GreedyPolicy
 from rl.policy.epsilongreedy import EpsilonGreedyPolicy
@@ -55,6 +55,7 @@ def main():
     
     # Create policy
     policy = EpsilonGreedyPolicy(epsilon=0.05, decay=1, min_epsilon=0.05)
+    policy = GreedyPolicy()
     
     # Initialize DQN agent
     dqn = DQN(

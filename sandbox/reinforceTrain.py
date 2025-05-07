@@ -1,4 +1,4 @@
-from environment import PlaneNavigationEnv
+from environments.basicEnvironment import PlaneNavigationEnv
 from rl.algorithms.reinforce import REINFORCE
 from rl.policy.greedy import GreedyPolicy
 from rl.policy.epsilongreedy import EpsilonGreedyPolicy
@@ -36,7 +36,7 @@ def main():
         [0.0, -0.4],    # Slight Down
     ], dtype=np.float32)
     
-     # init model - adjust input and output dimensions
+    # init model - adjust input and output dimensions
     model = torch.nn.Sequential(
         torch.nn.Linear(observation_dim, 128),
         torch.nn.Sigmoid(),
@@ -48,12 +48,12 @@ def main():
         torch.nn.Softmax()
     )
 
-    model.load_state_dict(torch.load("modelCache/model_C0"))
+    # model.load_state_dict(torch.load("modelCache/model_C0"))
   
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0003)
     
     # Create policy
-    policy = EpsilonGreedyPolicy(epsilon=0.05, decay=0.99, min_epsilon=0.05)
+    policy = EpsilonGreedyPolicy(epsilon=0.3, decay=0.99, min_epsilon=0.05)
     
     # Initialize reinforce agent
     reinforce = REINFORCE(
@@ -74,7 +74,7 @@ def main():
         total_reward = 0
 
         for episode in range(STEP_LIMIT):
-            env.render()
+            #env.render()
             
             # Convert observation to tensor for reinforce
             state_tensor = torch.tensor(observation, dtype=torch.float32)
@@ -119,7 +119,7 @@ def main():
     env.close()
 
     print("saving model...")
-    torch.save(reinforce.network.state_dict(), "modelCache/model_reinforce_C1")
+    torch.save(reinforce.network.state_dict(), "modelCache/model_reinforce_C2")
 
 
 if __name__ == '__main__':
