@@ -119,7 +119,7 @@ class DQN:
             # Get q values for the actions that were taken
             current_q_values = current_q_values.gather(1, actions.unsqueeze(1)).squeeze(1)
             
-            ### Calculate target q values using the target network (Double DQN approach)
+            ### Calculate target q values using the target network
             # Don't compute unnecessary gradients
             with torch.no_grad():  
                 # Get max q value from target network for next states
