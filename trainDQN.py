@@ -11,15 +11,16 @@ import os
 os.makedirs("modelCache", exist_ok=True)
 
 # Training parameters
-EPISODES = 1000
+EPISODES = 500
 MAX_STEPS = 100
 BATCH_SIZE = 64
 BUFFER_SIZE = 10000
 EPSILON_START = 1.0
-EPSILON_DECAY = 0.999
+EPSILON_DECAY = 0.998
 EPSILON_MIN = 0.05
 SAVE_INTERVAL = 100000
 PRINT_INTERVAL = 100
+
 
 def state_to_tensor(observation):
     """Convert dictionary observation to a flat tensor for DQN input"""
@@ -72,23 +73,23 @@ def main():
     
     print(f"Observation dimension: {observation_dim}")
     
-    # Neural network model
+    # nn
     model = torch.nn.Sequential(
-        torch.nn.Linear(observation_dim, 1024),  # Increased network size for larger state
+        torch.nn.Linear(observation_dim, 256),  # Increased network size for larger state
         torch.nn.ReLU(),
-        torch.nn.Linear(1024, 256),
+        torch.nn.Linear(256, 128),
         torch.nn.ReLU(),
-        torch.nn.Linear(256, 64),
+        torch.nn.Linear(128, 64),
         torch.nn.ReLU(),
         torch.nn.Linear(64, 4)  # 4 actions (up, right, down, left)
     )
     
-    # Set up the optimizer and loss function
+    # set up the optimizer and loss function
     criterion = torch.nn.SmoothL1Loss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     
     # Create policy with high initial exploration
-    policy = EpsilonGreedyPolicy(epsilon=EPSILON_START, decay=EPSILON_DECAY, min_epsilon=EPSILON_MIN, decay_step_interval=10)
+    policy = EpsilonGreedyPolicy(epsilon=EPSILON_START, decay=EPSILON_DECAY, min_epsilon=EPSILON_MIN, decay_step_interval=15)
     
     # Initialize DQN agent
     dqn = DQN(
@@ -109,6 +110,7 @@ def main():
     rewards_history = []
     success_history = []  # 1 for successful episodes, 0 for failures
     steps_history = []
+    steps_opt_surplus = []
     
     # Train for specified number of episodes
     for episode in tqdm(range(EPISODES), desc="Training"):
@@ -118,6 +120,9 @@ def main():
         
         episode_reward = 0
         step_count = 0
+
+        # calculate manhattan distance
+        opt_steps = abs(observation_dict['position'][0] - observation_dict['goal'][0]) + abs(observation_dict['position'][1] - observation_dict['goal'][1])
         
         # Run episode
         for step in range(MAX_STEPS):
@@ -152,6 +157,7 @@ def main():
         rewards_history.append(episode_reward)
         success_history.append(1 if reward > 10 else 0)  # Reward > 10 means we reached goal
         steps_history.append(step_count)
+        steps_opt_surplus.append(step_count - opt_steps)
         
         # Print progress
         if episode % PRINT_INTERVAL == 0:
@@ -165,37 +171,96 @@ def main():
             torch.save(model.state_dict(), f"modelCache/grid_dqn_model_{episode}")
     
     # Save final model
-    torch.save(model.state_dict(), "modelCache/grid_dqn_model_jetstream_V1000")
+    torch.save(model.state_dict(), "modelCache/grid_ddqn_model_jetstream_V1000")
     
-    # Plot training progress
-    plt.figure(figsize=(15, 5))
-    
-    plt.subplot(1, 3, 1)
-    plt.plot(rewards_history)
-    plt.title('Episode Rewards')
-    plt.xlabel('Episode')
-    plt.ylabel('Reward')
-    
-    plt.subplot(1, 3, 2)
-    # Calculate moving average success rate
-    window_size = 50  # Fixed indentation here
-    success_rate = [np.mean(success_history[max(0, i-window_size):i+1]) for i in range(len(success_history))]
-    plt.plot(success_rate)
-    plt.title('Success Rate')
-    plt.xlabel('Episode')
-    plt.ylabel('Success Rate')
-    plt.ylim([0, 1])
-    
-    plt.subplot(1, 3, 3)
-    plt.plot(steps_history)
-    plt.title('Steps per Episode')
-    plt.xlabel('Episode')
-    plt.ylabel('Steps')
-    
+        
+    # Create the plot with subplots side by side
+    plt.style.use('seaborn-v0_8')  # Use a clean, modern style
+    fig, (ax2, ax1) = plt.subplots(1, 2, figsize=(16, 8))
+
+    window_size = 50
+    # Calculate moving average
+    moving_avg = []
+    for i in range(len(steps_opt_surplus)):
+        if i < window_size - 1:
+            # For early points, use all available data
+            avg = np.mean(steps_opt_surplus[:i+1])
+        else:
+            # Use last 50 items
+            avg = np.mean(steps_opt_surplus[i-window_size+1:i+1])
+        moving_avg.append(avg)
+
+
+    # First subplot: Line plots for steps_opt_surplus and steps_history
+    x = range(len(steps_opt_surplus))  # Assuming all lists have same length
+    ax1.plot(x, moving_avg, 
+            color='#2E8B57', 
+            linewidth=2.5, 
+            marker='o', 
+            markersize=4,
+            label=f'Path length difference compared to mahattan distance, moving average (window={window_size})',
+            alpha=0.8)
+
+    # Customize first subplot
+    ax1.set_xlabel('Iteration', fontsize=14, fontweight='bold')
+    ax1.set_ylabel('Value', fontsize=14, fontweight='bold')
+    ax1.set_title('Path length progress', fontsize=16, fontweight='bold', pad=20)
+    ax1.grid(True, alpha=0.3, linestyle='--')
+    ax1.legend(loc='best', frameon=True, fancybox=True, shadow=True, fontsize=12)
+    ax1.set_facecolor('#F8F9FA')
+    ax1.spines['top'].set_visible(False)
+    ax1.spines['right'].set_visible(False)
+    ax1.spines['left'].set_color('#666666')
+    ax1.spines['bottom'].set_color('#666666')
+
+    # Second subplot: Moving average of success_history
+    # Calculate moving average
+    moving_avg = []
+    for i in range(len(success_history)):
+        if i < window_size - 1:
+            # For early points, use all available data
+            avg = np.mean(success_history[:i+1])
+        else:
+            # Use last 25 items
+            avg = np.mean(success_history[i-window_size+1:i+1])
+        moving_avg.append(avg)
+
+    ax2.plot(x, moving_avg, 
+            color='#4A90E2', 
+            linewidth=2.5, 
+            marker='^', 
+            markersize=4,
+            label=f'P(Success) moving average (window={window_size})',
+            alpha=0.8)
+
+    # Customize second subplot
+    ax2.set_xlabel('Iteration', fontsize=14, fontweight='bold')
+    ax2.set_ylabel('Success Rate', fontsize=14, fontweight='bold')
+    ax2.set_title('Success probability moving average', fontsize=16, fontweight='bold', pad=20)
+    ax2.grid(True, alpha=0.3, linestyle='--')
+    ax2.legend(loc='best', frameon=True, fancybox=True, shadow=True, fontsize=12)
+    ax2.set_facecolor('#F8F9FA')
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['right'].set_visible(False)
+    ax2.spines['left'].set_color('#666666')
+    ax2.spines['bottom'].set_color('#666666')
+
+    # Set y-axis limits for success rate (0 to 1)
+    ax2.set_ylim(0, 1)
+
+    # Adjust layout to prevent overlap
     plt.tight_layout()
-    plt.savefig('training_progress.png')
+
+    # Save the plot as a high-quality image
+    plt.savefig('flight_optimization_plot.png', 
+                dpi=300, 
+                bbox_inches='tight', 
+                facecolor='white',
+                edgecolor='none')
+
+    # Display the plot
     plt.show()
-    
+
     # Close environment
     env.close()
 

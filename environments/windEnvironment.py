@@ -18,6 +18,8 @@ class PlaneNavigationEnv(gym.Env):
         self.grid_size = 10  # New 10x10 grid
         self.max_steps = 100
         self.step_count = 0
+
+        self.norm_const = (2* ((self.grid_size - 1) ** 2)) ** (1/2)
         
         # Define action and observation space
         # Actions: move in one of 4 directions (up, down, left, right)
@@ -137,7 +139,8 @@ class PlaneNavigationEnv(gym.Env):
         
         # Reward calculation
         distance_to_goal = np.linalg.norm(self.goal - self.position)
-        reward = -1.0 - distance_to_goal * 0.01  # Small penalty for each step to encourage efficiency
+        reward = -1.0 - distance_to_goal / self.norm_const  # Small penalty for each step to encourage efficiency
+                                                            # distance_to_goal / self.norm_const is in [0, 1]
         
         terminated = False
         truncated = False

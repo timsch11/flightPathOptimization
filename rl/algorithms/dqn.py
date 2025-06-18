@@ -146,7 +146,7 @@ class DQN:
             # Increment sample counter
             self.samples += batch_size
         
-        print(f"Training loss: {loss.item():.4f}")
+        # print(f"Training loss: {loss.item():.4f}")
 
 
 class ReplayBuffer:
