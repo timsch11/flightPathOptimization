@@ -9,7 +9,7 @@ class PlaneNavigationEnv(gym.Env):
     
     metadata = {"render_modes": ["human"], "render_fps": 10}
     
-    def __init__(self):
+    def __init__(self, heuristic: bool = True):
         super(PlaneNavigationEnv, self).__init__()
         
         # render is not initalized yet
@@ -24,6 +24,8 @@ class PlaneNavigationEnv(gym.Env):
         # Define action and observation space
         # Actions: move in one of 4 directions (up, down, left, right)
         self.action_space = spaces.Discrete(4)
+
+        self.heuristic = heuristic
         
         # Observation: position (2), goal position (2), 
         # full wind vector field (10x10x2), grid map with obstacles (100), 
@@ -138,9 +140,13 @@ class PlaneNavigationEnv(gym.Env):
             self.position = new_position
         
         # Reward calculation
-        distance_to_goal = np.linalg.norm(self.goal - self.position)
-        reward = -1.0 - distance_to_goal / self.norm_const  # Small penalty for each step to encourage efficiency
-                                                            # distance_to_goal / self.norm_const is in [0, 1]
+        if self.heuristic:
+            distance_to_goal = np.linalg.norm(self.goal - self.position)
+            reward = -1.0 - distance_to_goal / self.norm_const  # Small penalty for each step to encourage efficiency                                                 
+                                                                # distance_to_goal / self.norm_const is in [0, 1]
+
+        else:
+            reward = -1.0
         
         terminated = False
         truncated = False
